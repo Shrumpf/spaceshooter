@@ -40,8 +40,8 @@ class Bullet {
 }
 
 class Player {
-  rotation = 0;
- constructor(game) {
+  constructor(game) {
+   this.rotation = 0;
    this.game = game;
    this.height = 25;
    this.width = 25;
