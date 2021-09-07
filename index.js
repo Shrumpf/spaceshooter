@@ -23,11 +23,11 @@ class Bullet {
       return;
     }
     //console.log(this.x);
-    this.game.ctx.fillStyle = 'blue';
     //this.game.ctx.translate(this.x + (this.width/2), this.y + (this.height/2));
     //this.game.ctx.rotate(this.rotation);
     //this.game.ctx.translate(0,0);
     //this.game.ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+    this.game.ctx.fillStyle = 'blue';
     this.game.ctx.fillRect(this.x, this.y, this.width, this.height);
     // this.game.ctx.translate(-200, -200);
     // this.x += (this.target.x - this.x) / 10;
@@ -36,6 +36,42 @@ class Bullet {
      this.y += -Math.cos(this.rotation) * 5;
   }
 }
+
+class Enemy {
+  constructor(game, x, y) {
+    this.active = true;
+    this.game = game;
+    this.ctx = game.ctx;
+    this.x = x;
+    this.y = y;
+    this.height = 25;
+    this.width = 25;
+  }
+
+  draw() {
+    if (!this.active) {
+      return;
+    }
+    this.ctx.fillStyle = 'yellow';
+    this.ctx.fillRect(this.x, this.y, this.width, this.height);
+    this.checkHits();
+  }
+
+  checkHits() {
+    let bullets = this.game.bullets.filter(b => {
+      if (b.x > this.x && b.x < this.x + this.width && b.y > this.y && b.y < this.y + this.height) {
+        return true;
+      }
+    });
+
+    if (bullets.length > 0) {
+      this.active = false;
+      this.game.score++;
+      console.log(this.game.score);
+    }
+  }
+}
+
 
 class Player {
   constructor(game) {
@@ -86,11 +122,13 @@ class Player {
 class Game {
   constructor() {
     this.bullets = [];
+    this.enemies = [];
     this.canvas = document.getElementById("canvas");
     this.ctx = this.canvas.getContext('2d');
     this.height = window.innerHeight;
     this.width = window.innerWidth;
     this.player = new Player(this);
+    this.score = 0;
 
     window.addEventListener('keydown', (e) => {
       // Up (up / W / Z)
@@ -166,6 +204,10 @@ class Game {
     this.canvas.style.width = this.width + "px";
     this.canvas.setAttribute('height', this.height);
     this.canvas.setAttribute('width', this.width);
+    setInterval(() => {
+      this.enemies.push(new Enemy(this, getRandomInt(0, this.width - 25), getRandomInt(0, this.height - 25)));
+    }, 100)
+
     window.requestAnimationFrame(this.draw.bind(this));
 
   }
@@ -176,6 +218,9 @@ class Game {
     this.player.draw();
     for (let i = 0; i < this.bullets.length; i++) {
       this.bullets[i].draw();
+    }
+    for (let i = 0; i < this.enemies.length; i++) {
+      this.enemies[i].draw();
     }
     this.ctx.restore();
     window.requestAnimationFrame(this.draw.bind(this));
@@ -218,5 +263,12 @@ function lineInterpolate(point1, point2, distance) {
 
   return result;
 }
+
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+}
+
 
 let game = new Game();
