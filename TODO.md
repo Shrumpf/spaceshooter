@@ -1,0 +1,4 @@
+- Different enemy classes for different score
+- Spawn Powerups
+- Powerups
+-- Bounce
