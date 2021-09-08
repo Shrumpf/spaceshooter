@@ -6,22 +6,28 @@ function dbug(ctx, player, startX, startY) {
 }
 
 class Bullet {
-  constructor(game, rotation) {
+  constructor(game) {
     this.game = game;
     this.x = game.player.x + game.player.width / 2;
     this.y = game.player.y + game.player.height / 2;
-    this.height = 5;
-    this.width = 5;
-    this.rotation = rotation
-    this.vx = 20;
-    this.vy = 20;
+    this.height = 15;
+    this.width = 15;
+    this.rotation = game.player.rotation;
+    this.vx = 25;
+    this.vy = 25;
     this.active = true;
   }
 
   draw() {
+    if (this.y > this.game.height || this.y < 0 || this.x > this.game.width || this.x < 0) {
+      this.active = false;
+    }
+
     if (!this.active) {
       return;
     }
+
+
     //console.log(this.x);
     //this.game.ctx.translate(this.x + (this.width/2), this.y + (this.height/2));
     //this.game.ctx.rotate(this.rotation);
@@ -32,8 +38,8 @@ class Bullet {
     // this.game.ctx.translate(-200, -200);
     // this.x += (this.target.x - this.x) / 10;
     // this.y += (this.target.y - this.y) / 10;
-     this.x += Math.sin(this.rotation) * 5;
-     this.y += -Math.cos(this.rotation) * 5;
+     this.x += Math.cos(this.rotation) * this.vx;
+     this.y += Math.sin(this.rotation) * this.vy;
   }
 }
 
@@ -58,8 +64,17 @@ class Enemy {
   }
 
   checkHits() {
-    let bullets = this.game.bullets.filter(b => {
-      if (b.x > this.x && b.x < this.x + this.width && b.y > this.y && b.y < this.y + this.height) {
+  //   if (bullet.x < this.x + this.width &&
+  //     bullet.x + bullet.width > this.x &&
+  //     bullet.y < this.y + this.height &&
+  //     bullet.y + bullet.height > this.y) {
+  //      // collision detected!
+  //  }
+    let bullets = this.game.bullets.filter(bullet => {
+      if (bullet.x < this.x + this.width &&
+            bullet.x + bullet.width > this.x &&
+            bullet.y < this.y + this.height &&
+            bullet.y + bullet.height > this.y) {
         return true;
       }
     });
@@ -178,7 +193,7 @@ class Game {
       // atan2(MouseYposition - PlayerYposition, MouseXposition - PlayerXposition)
       const rotation = Math.atan2(startY - this.player.y, startX - this.player.x);
       this.player.rotation = rotation;
-      this.bullets.push(new Bullet(this, rotation))
+      // this.bullets.push(new Bullet(this, rotation))
     });
 
     this.canvas.addEventListener('touchmove', (e) => {
@@ -187,15 +202,13 @@ class Game {
       // atan2(MouseYposition - PlayerYposition, MouseXposition - PlayerXposition)
       const rotation = Math.atan2(startY - this.player.y, startX - this.player.x);
       this.player.rotation = rotation;
-      this.bullets.push(new Bullet(this, { x: startX, y: startY }))
+      this.bullets.push(new Bullet(this))
       //this.player.x = startX;
       //this.player.y = startY;
       // this.ctx.fillRect(startX, startY, 25, 25);
     });
     this.canvas.addEventListener('click', (e) => {
-      const x = parseInt(e.clientX - offset(canvas).left);
-      const y = parseInt(e.clientY - offset(canvas).top);
-      this.bullets.push(new Bullet(this, { x, y }));
+      this.bullets.push(new Bullet(this));
     })
     this.init();
   }
@@ -207,6 +220,7 @@ class Game {
     setInterval(() => {
       this.enemies.push(new Enemy(this, getRandomInt(0, this.width - 25), getRandomInt(0, this.height - 25)));
     }, 100)
+    // this.shootTimer();
 
     window.requestAnimationFrame(this.draw.bind(this));
 
@@ -216,6 +230,11 @@ class Game {
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ctx.translate(0, 0);
     this.player.draw();
+    for (let i = 0; i < 1; i++) {
+      this.bullets.push(new Bullet(this));
+    }
+    this.bullets = this.bullets.filter(b => b.active);
+    this.enemies = this.enemies.filter(b => b.active);
     for (let i = 0; i < this.bullets.length; i++) {
       this.bullets[i].draw();
     }
@@ -224,6 +243,11 @@ class Game {
     }
     this.ctx.restore();
     window.requestAnimationFrame(this.draw.bind(this));
+  }
+
+  shootTimer() {
+    this.bullets.push(new Bullet(this))
+    setTimeout(this.shootTimer.bind(this), 5000 - this.score * 100);
   }
 }
 
