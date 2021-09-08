@@ -1,3 +1,5 @@
+const canvasTxt = window.canvasTxt.default;
+
 function dbug(ctx, player, startX, startY) {
   ctx.beginPath();
   ctx.moveTo(player.x, player.y);
@@ -6,7 +8,7 @@ function dbug(ctx, player, startX, startY) {
 }
 
 class Bullet {
-  constructor(game) {
+  constructor(game, revert = false) {
     this.game = game;
     this.x = game.player.x + game.player.width / 2;
     this.y = game.player.y + game.player.height / 2;
@@ -16,6 +18,7 @@ class Bullet {
     this.vx = 25;
     this.vy = 25;
     this.active = true;
+    this.revert = revert;
   }
 
   draw() {
@@ -38,20 +41,26 @@ class Bullet {
     // this.game.ctx.translate(-200, -200);
     // this.x += (this.target.x - this.x) / 10;
     // this.y += (this.target.y - this.y) / 10;
-     this.x += Math.cos(this.rotation) * this.vx;
-     this.y += Math.sin(this.rotation) * this.vy;
+    if (this.revert) {
+      this.x -= Math.cos(this.rotation) * this.vx;
+      this.y -= Math.sin(this.rotation) * this.vy;
+    } else {
+      this.x += Math.cos(this.rotation) * this.vx;
+      this.y += Math.sin(this.rotation) * this.vy;
+    }
   }
 }
 
 class Enemy {
-  constructor(game, x, y) {
+  constructor(game, x, y, height = 25, width = 25, health = 100) {
     this.active = true;
     this.game = game;
     this.ctx = game.ctx;
     this.x = x;
     this.y = y;
-    this.height = 25;
-    this.width = 25;
+    this.height = height;
+    this.width = width;
+    this.health = health;
   }
 
   draw() {
@@ -64,25 +73,37 @@ class Enemy {
   }
 
   checkHits() {
-  //   if (bullet.x < this.x + this.width &&
-  //     bullet.x + bullet.width > this.x &&
-  //     bullet.y < this.y + this.height &&
-  //     bullet.y + bullet.height > this.y) {
-  //      // collision detected!
-  //  }
+    //   if (bullet.x < this.x + this.width &&
+    //     bullet.x + bullet.width > this.x &&
+    //     bullet.y < this.y + this.height &&
+    //     bullet.y + bullet.height > this.y) {
+    //      // collision detected!
+    //  }
     let bullets = this.game.bullets.filter(bullet => {
       if (bullet.x < this.x + this.width &&
-            bullet.x + bullet.width > this.x &&
-            bullet.y < this.y + this.height &&
-            bullet.y + bullet.height > this.y) {
+        bullet.x + bullet.width > this.x &&
+        bullet.y < this.y + this.height &&
+        bullet.y + bullet.height > this.y) {
         return true;
       }
     });
 
     if (bullets.length > 0) {
-      this.active = false;
-      this.game.score++;
-      console.log(this.game.score);
+      if (!this.game.player.powerups.laser) {
+        bullets.forEach(b => b.active = false);
+      }
+      if (Math.random() < this.game.player.critrate) {
+        console.log("Crit!");
+        this.health -= this.game.player.damage * this.game.player.critdamage;
+      } else {
+        console.log("Hit!");
+        this.health -= this.game.player.damage;
+      }
+
+      if (this.health <= 0) {
+        this.active = false;
+        this.game.score++;
+      }
     }
   }
 }
@@ -102,6 +123,14 @@ class Player {
     this.right = 0;
     this.vy = 2;
     this.vx = 2;
+    this.critrate = 1;
+    this.critdamage = 2;
+    this.damage = 100;
+    this.range = 0;
+    this.powerups = {
+      laser: false,
+      split: 2
+    }
   }
 
   draw() {
@@ -122,6 +151,8 @@ class Player {
     if (this.right) {
       this.x += this.vx;
     }
+
+    this.rotation = Math.atan2(this.game.mousepos.y - this.y, this.game.mousepos.x - this.x);
 
     this.game.ctx.fillStyle = 'red';
     this.game.ctx.translate(this.x + (this.width / 2), this.y + (this.height / 2));
@@ -144,6 +175,7 @@ class Game {
     this.width = window.innerWidth;
     this.player = new Player(this);
     this.score = 0;
+    this.mousepos = {};
 
     window.addEventListener('keydown', (e) => {
       // Up (up / W / Z)
@@ -165,6 +197,9 @@ class Game {
       if (e.keyCode == 37 || e.keyCode == 65 || e.keyCode == 81) {
         this.player.left = true;
       }
+
+      this.player.rotation = Math.atan2(this.mousepos.y - this.player.y, this.mousepos.x - this.player.x);
+
     });
     window.addEventListener('keyup', (e) => {
       if (e.keyCode == 38 || e.keyCode == 90 || e.keyCode == 87) {
@@ -190,6 +225,9 @@ class Game {
     this.canvas.addEventListener("mousemove", (e) => {
       const startX = parseInt(e.clientX - offset(canvas).left);
       const startY = parseInt(e.clientY - offset(canvas).top);
+
+      this.mousepos = {x: startX, y: startY};
+      
       // atan2(MouseYposition - PlayerYposition, MouseXposition - PlayerXposition)
       const rotation = Math.atan2(startY - this.player.y, startX - this.player.x);
       this.player.rotation = rotation;
@@ -218,8 +256,14 @@ class Game {
     this.canvas.setAttribute('height', this.height);
     this.canvas.setAttribute('width', this.width);
     setInterval(() => {
-      this.enemies.push(new Enemy(this, getRandomInt(0, this.width - 25), getRandomInt(0, this.height - 25)));
-    }, 100)
+      if (Math.random() < 0.1) {
+        this.enemies.push(new Enemy(this, getRandomInt(0, this.width - 25), getRandomInt(0, this.height - 25), 50, 50, 1000));
+
+      } else {
+        this.enemies.push(new Enemy(this, getRandomInt(0, this.width - 25), getRandomInt(0, this.height - 25)));
+
+      }
+    }, 10)
     // this.shootTimer();
 
     window.requestAnimationFrame(this.draw.bind(this));
@@ -232,6 +276,7 @@ class Game {
     this.player.draw();
     for (let i = 0; i < 1; i++) {
       this.bullets.push(new Bullet(this));
+      this.bullets.push(new Bullet(this, true));
     }
     this.bullets = this.bullets.filter(b => b.active);
     this.enemies = this.enemies.filter(b => b.active);
@@ -242,6 +287,13 @@ class Game {
       this.enemies[i].draw();
     }
     this.ctx.restore();
+    
+    this.ctx.save();
+    this.ctx.fillStyle = "#FFFFFF";
+    canvasTxt.fontSize = 48;
+    canvasTxt.drawText(this.ctx, `Score: ${this.score}`, 0, 0, 300, 100);
+    this.ctx.restore();
+
     window.requestAnimationFrame(this.draw.bind(this));
   }
 
